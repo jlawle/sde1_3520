@@ -1,0 +1,54 @@
+(**
+John Lawler
+CPSC/ECE 3520 SDE1
+February 2020
+*)
+
+
+let rec nextState = function (currentState, weightMatrix) ->
+  if currentState == [] then []
+  else
+    hop11ActAll(netAll(currentState, weightMatrix), currentState);;
+
+
+(*****************************************************************************)
+
+let rec updateN = function (currentState, weightMatrix, n) ->
+  if n == 0 then currentState
+  else
+    updateN(nextState(currentState, weightMatrix), weightMatrix, n-1);;
+
+
+(*****************************************************************************)
+
+let eqSpan = function (state, wM, range) ->
+  if (updateN(state, wM, range) = updateN(state, wM, range-1)) then true
+  else false;;
+
+
+let rec findsEquilibrium = function (initialState, weightMatrix, range) ->
+  if range = 0 then false
+  else
+    if (eqSpan(initialState, weightMatrix, range) = true) then true
+    else false;;
+
+(*****************************************************************************)
+
+let rec stateSize = function (stateVector) ->
+  if stateVector = [] then 0
+  else 1 + stateSize(List.tl stateVector);;
+
+let calculate = function (state, wm) ->
+  -0.5 *. List.nth state (stateSize(state) - stateSize(wm))
+  *. netUnit(state, List.hd wm);;
+
+let rec energy = function (state, weightMatrix) ->
+  if weightMatrix = [] then 0.
+  else calculate(state, weightMatrix) +. energy(state, List.tl weightMatrix);;
+
+
+
+
+
+
+(** hoptrain Astate -> takes a vector and turns into into vector with zeros *)

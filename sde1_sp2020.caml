@@ -1,54 +1,72 @@
 (**
 John Lawler
-CPSC/ECE 3520 SDE1
+CPSC/ECE 3520
+SDE 1 - Hopfield Recurrent Artificial Neural Network
 February 2020
 *)
 
-
-let rec nextState = function (currentState, weightMatrix) ->
-  if currentState == [] then []
-  else
-    hop11ActAll(netAll(currentState, weightMatrix), currentState);;
-
-
 (*****************************************************************************)
+(** HELPER FUNCTIONS **)
 
-let rec updateN = function (currentState, weightMatrix, n) ->
-  if n == 0 then currentState
-  else
-    updateN(nextState(currentState, weightMatrix), weightMatrix, n-1);;
-
-
-(*****************************************************************************)
-
-let eqSpan = function (state, wM, range) ->
-  if (updateN(state, wM, range) = updateN(state, wM, range-1)) then true
-  else false;;
-
-
-let rec findsEquilibrium = function (initialState, weightMatrix, range) ->
-  if range = 0 then false
-  else
-    if (eqSpan(initialState, weightMatrix, range) = true) then true
-    else false;;
-
-(*****************************************************************************)
-
+(** Calculate the size of the vector sent **)
 let rec stateSize = function (stateVector) ->
-  if stateVector = [] then 0
+  if stateVector == [] then 0
   else 1 + stateSize(List.tl stateVector);;
 
+(** energy calculation function **)
 let calculate = function (state, wm) ->
   -0.5 *. List.nth state (stateSize(state) - stateSize(wm))
   *. netUnit(state, List.hd wm);;
 
+(** function used to begin the list of lists for creating a weight matrix **)
+let rec createVector = function (astate, v, pos, index) ->
+  if astate == [] then []
+  else if index == pos then 0. :: createVector(List.tl astate, v, pos, index+1 )
+    else (List.hd astate *. v) :: createVector(List.tl astate, v, pos, index+1);;
+
+(** function for combining together vectors created from above function to form weight matrix **)
+let rec createMat = function (astate, stateCopy, pos) ->
+  if astate == [] then []
+  else createVector(stateCopy, List.hd astate, pos, 0)::createMat(List.tl astate, stateCopy, pos+1);;
+
+(** function for concatenating and adding together the head of two given lists with the tails recursively **)
+let rec catStates = function (vec1, vec2) ->
+  if vec1 != [] || vec2 != [] then
+   List.hd vec1 +. List.hd vec2::catStates(List.tl vec1, List.tl vec2)
+  else [];;
+
+(** Implementation for concatenating weight matrices recursively using the head and tail of the
+    state list sent to it via hopTrain() **)
+let rec catWeights = function (head, tail) ->
+  if head != [] && tail != [] then
+    catStates(List.hd head, List.hd tail)::catWeights(List.tl head, List.tl tail)
+  else if head == [] then tail else head;;
+
+(*****************************************************************************)
+(** FUNCTIONS TO IMPLEMENT FROM SECTION 6 **)
+
+let rec nextState = function (currentState, weightMatrix) ->
+  if currentState == [] then []
+  else hop11ActAll(netAll(currentState, weightMatrix), currentState);;
+
+let rec updateN = function (currentState, weightMatrix, n) ->
+  if n == 0 then currentState
+  else updateN(nextState(currentState, weightMatrix), weightMatrix, n-1);;
+
+let rec findsEquilibrium = function (initialState, weightMatrix, range) ->
+  if range = 0 then false
+  else  if (  updateN(initialState, weightMatrix, range) =
+              updateN(initialState, weightMatrix, range-1)) then true
+        else false;;
+
 let rec energy = function (state, weightMatrix) ->
-  if weightMatrix = [] then 0.
+  if weightMatrix == [] then 0.
   else calculate(state, weightMatrix) +. energy(state, List.tl weightMatrix);;
 
+let hopTrainAstate = function (astate) ->
+  if astate == [] then []
+  else createMat(astate, astate, 0);;
 
-
-
-
-
-(** hoptrain Astate -> takes a vector and turns into into vector with zeros *)
+let rec hopTrain = function (allStates) ->
+  if allStates == [] then []
+  else catWeights(hopTrainAstate(List.hd allStates), hopTrain(List.tl allStates));;
